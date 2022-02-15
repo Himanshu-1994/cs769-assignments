@@ -7,20 +7,18 @@ def import_or_install(package):
     try:
         __import__(package)
         print("Successfully imported package: ",package)
-        return 1
     except ImportError:
         pip.main(['install', package])   
-    return 0
 
-package = "wget"
+package = 'wget'
 status = import_or_install(package)
 
-if not status:
-    try:
-        __import__(package)
-    except ImportError:
-        print("Package: ",package, "not installed")
-        sys.exit()
+try:
+    import wget
+except ImportError:
+    print("wget not installed")
+    sys.exit()
+
 url = "http://nlp.stanford.edu/data/glove.6B.zip"
 filename = wget.download(url)
 print(filename)
