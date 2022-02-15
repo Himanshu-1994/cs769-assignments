@@ -39,12 +39,43 @@ def load_embedding(vocab, emb_file, emb_size):
     Return:
         emb: (np.array), embedding matrix of size (|vocab|, emb_size) 
     """
-    raise NotImplementedError()
+    v_size = len(vocab)
+    emb_vectors = {}
+    emb = np.zeros((v_size,emb_size),dtype=np.float64)
+    unknown_words = []
+
+    with open(emb_file, 'r') as f:
+        for line in f:
+            ln = line.split()
+            val = np.array(ln[1:], dtype=np.float64)
+            emb_vectors[ln[0]] = val
+    
+    for word in vocab.word2id:
+        id = vocab[word]
+        if word in emb_vectors:
+            emb[id][:] = emb_vectors[word]
+        else:
+            if word is '<pad>' or word is '<unk>':
+                continue
+            unknown_words.append(word)
+            print("Embedding does not exist for word = ",word)
+
+    unk_id = vocab['<unk>']
+    emb[unk_id][:] = np.mean(emb,axis=0)
+    
+    for word in unknown_words:
+        id = vocab[word]
+        emb[id][:] = emb[unk_id]
+
+    return emb
+    #raise NotImplementedError()
 
 
 class DanModel(BaseModel):
     def __init__(self, args, vocab, tag_size):
         super(DanModel, self).__init__(args, vocab, tag_size)
+        self.n_vocab = len(vocab)
+        self.n_embed = args.emb_size
         self.define_model_parameters()
         self.init_model_parameters()
 
@@ -52,11 +83,13 @@ class DanModel(BaseModel):
         if args.emb_file is not None:
             self.copy_embedding_from_numpy()
 
-    def define_model_parameters():
+    def define_model_parameters(self):
         """
         Define the model's parameters, e.g., embedding layer, feedforward layer.
         """
-        raise NotImplementedError()
+        self.embedding = torch.nn.Embedding(num_embeddings=self.n_vocab, embedding_dim=self.n_embed)
+        return
+        #raise NotImplementedError()
 
     def init_model_parameters(self):
         """
@@ -64,11 +97,14 @@ class DanModel(BaseModel):
         """
         raise NotImplementedError()
 
-    def copy_embedding_from_numpy():
+    def copy_embedding_from_numpy(self):
         """
         Load pre-trained word embeddings from numpy.array to nn.embedding
         """
-        raise NotImplementedError()
+        emb = load_embedding(self.vocab, self.args.emb_file, self.args.emb_size)
+        self.embedding.weight = nn.Parameter(torch.from_numpy(emb).float())
+
+        #raise NotImplementedError()
 
     def forward(self, x):
         """

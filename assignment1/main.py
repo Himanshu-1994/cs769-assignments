@@ -144,7 +144,7 @@ def main():
     np.random.seed(_seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    print("current directory = ",os.getcwd())
+    
     # Read datasets
     train_text = read_dataset(args.train)
     dev_text = read_dataset(args.dev)

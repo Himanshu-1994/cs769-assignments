@@ -31,4 +31,4 @@ except ImportError:
     print("Package 'zipfile' does not exist. Please install")
     sys.exit()
 
-ZipFile(filename).extract("glove.6B.50d.txt",".")
+ZipFile(filename).extract("glove.6B.300d.txt",".")
