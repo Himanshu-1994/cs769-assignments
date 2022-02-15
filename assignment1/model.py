@@ -141,9 +141,28 @@ class DanModel(BaseModel):
         Return:
             scores: (torch.FloatTensor), [batch_size, ntags]
         """
-        x = self.embedding(x)
-        #(batch_size,length_of_sentence,embedding_dim)
-        x = torch.mean(x,1)
+
+        
+        
+        #x (batch_size,length_of_sentence)
+        probs = torch.bernoulli(0.8*torch.ones(x.shape[0],x.shape[1]))
+        tot = probs.sum(1).unsqueeze(-1).expand(-1,x.shape[1])
+        probs = probs==1
+        probs = torch.where(tot!=0,probs,1)
+
+        #(batch_size,length_of_sentence)
+        choose = torch.where(probs==1,x,0)
+        #batch_size,length_of_sentence)
+
+        emb_out = self.embedding(choose)
+        
+
+        #batch_size,length_of_sentence,embeddingsize)
+
+        emb_out = torch.sum(emb_out,1)
+        denom = probs.sum(1).unsqueeze(-1).expand(-1,emb_out.shape[1])
+        x = torch.div(emb_out,denom)
+
         #(batch_size,embedding_dim)
         x = self.fc1(x)
         x = self.z1(x)
