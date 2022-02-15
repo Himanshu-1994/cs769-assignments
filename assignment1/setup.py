@@ -1,3 +1,4 @@
+import os
 import pip
 import sys
 
@@ -20,8 +21,8 @@ except ImportError:
     sys.exit()
 
 url = "http://nlp.stanford.edu/data/glove.6B.zip"
-filename = wget.download(url)
-print(filename)
+if not os.path.exists('glove.6B.zip'):
+    filename = wget.download(url)
 
 try:
     from zipfile import ZipFile
