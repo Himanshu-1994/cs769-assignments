@@ -21,6 +21,7 @@ except ImportError:
     sys.exit()
 
 url = "http://nlp.stanford.edu/data/glove.6B.zip"
+filename = 'glove.6B.zip'
 if not os.path.exists('glove.6B.zip'):
     filename = wget.download(url)
 
@@ -30,4 +31,4 @@ except ImportError:
     print("Package 'zipfile' does not exist. Please install")
     sys.exit()
 
-ZipFile("filename").extractall(".")
+ZipFile(filename).extract("glove.6B.50d.txt",".")
