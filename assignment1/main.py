@@ -79,7 +79,18 @@ def pad_sentences(sents, pad_id):
     Return:
         aug_sents: list(list(int)), |s_1| == |s_i|, for s_i in sents
     """
-    raise NotImplementedError()
+
+    max_seq_length = 0
+
+    for sentence in sents:
+        if len(sentence)>max_seq_length:
+            max_seq_length = len(sentence)
+    
+    for i in range(len(sents)):
+        if len(sents[i])<max_seq_length:
+            sents[i]+=[pad_id]*(max_seq_length-len(sents[i]))
+    #raise NotImplementedError()
+    return sents
 
 def compute_grad_norm(model, norm_type=2):
     """
@@ -133,6 +144,7 @@ def main():
     np.random.seed(_seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    print("current directory = ",os.getcwd())
     # Read datasets
     train_text = read_dataset(args.train)
     dev_text = read_dataset(args.dev)
