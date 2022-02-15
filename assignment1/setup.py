@@ -6,7 +6,7 @@ import sys
 def import_or_install(package):
     try:
         __import__(package)
-        print("successfully imported - ",package)
+        print("Successfully imported package: ",package)
         return 1
     except ImportError:
         pip.main(['install', package])   
@@ -21,3 +21,6 @@ if not status:
     except ImportError:
         print("Package: ",package, "not installed")
         sys.exit()
+url = "http://nlp.stanford.edu/data/glove.6B.zip"
+filename = wget.download(url)
+print(filename)
