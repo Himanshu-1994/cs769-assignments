@@ -24,7 +24,7 @@ def get_args():
     parser.add_argument("--hid_drop", type=float, default=0.333)
     parser.add_argument("--pooling_method", type=str, default="avg", choices=["sum", "avg", "max"])
     parser.add_argument("--grad_clip", type=float, default=5.0)
-    parser.add_argument("--max_train_epoch", type=int, default=5)
+    parser.add_argument("--max_train_epoch", type=int, default=200)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--lrate", type=float, default=0.005)
     parser.add_argument("--lrate_decay", type=float, default=0)  # 0 means no decay!
@@ -89,6 +89,7 @@ def pad_sentences(sents, pad_id):
     for i in range(len(sents)):
         if len(sents[i])<max_seq_length:
             sents[i]+=[pad_id]*(max_seq_length-len(sents[i]))
+            #print(sents[i])
     #raise NotImplementedError()
     return sents
 
@@ -119,6 +120,7 @@ def evaluate(dataset, model, device, tag_vocab=None, filename=None):
     """
     Evaluate test/dev set
     """
+    model.eval()
     predicts = []
     acc = 0
     for words, tag in dataset:
@@ -172,6 +174,7 @@ def main():
     train_iter = 0
     train_loss = train_example = train_correct = 0
     best_records = (0, 0)  # [best_iter, best_accuracy]
+    model.train()
     for epoch in range(args.max_train_epoch):
         for batch in data_iter(train_data, batch_size=args.batch_size, shuffle=True):
             train_iter += 1

@@ -55,11 +55,16 @@ def load_embedding(vocab, emb_file, emb_size):
         if word in emb_vectors:
             emb[id][:] = emb_vectors[word]
         else:
-            if word is '<pad>' or word is '<unk>':
+            if word == '<pad>' or word == '<unk>':
                 continue
+            
             unknown_words.append(word)
             print("Embedding does not exist for word = ",word)
 
+    print("length of unknown words",len(unknown_words))
+    if len(unknown_words)>0:
+        print(unknown_words)
+        sys.exit()
     unk_id = vocab['<unk>']
     emb[unk_id][:] = np.mean(emb,axis=0)
     
@@ -88,10 +93,15 @@ class DanModel(BaseModel):
         Define the model's parameters, e.g., embedding layer, feedforward layer.
         """
         self.embedding = torch.nn.Embedding(num_embeddings=self.n_vocab, embedding_dim=self.n_embed)
-        self.fc1 = nn.Linear(self.n_embed, self.n_embed)
-        self.z1 = nn.ReLU()
-        self.fc2 = nn.Linear(self.n_embed, self.n_embed)
-        self.z2 = nn.ReLU()
+        self.fc1 = nn.Linear(self.n_embed, 300)
+        self.z1 = nn.LeakyReLU(0.2)
+        self.fc2 = nn.Linear(300, 300)
+        #self.fc2 = nn.Linear(self.n_embed, 50)
+        self.z2 = nn.LeakyReLU(0.2)
+        self.fc3 = nn.Linear(300, 5)
+        self.z3 = nn.LeakyReLU(0.2)
+        #self.fc4 = nn.Linear(300, 5)
+        
         return
         #raise NotImplementedError()
 
@@ -102,7 +112,10 @@ class DanModel(BaseModel):
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 torch.nn.init.xavier_uniform(m.weight)
-                m.bias.data.fill_(0.1)
+                #m.weight.data.uniform_(-0.08,0.08)
+                #m.bias.data.fill_(0.1)
+                #print("here")
+                m.bias.data.fill_(0.0)
         return
         #raise NotImplementedError()
 
@@ -111,7 +124,9 @@ class DanModel(BaseModel):
         Load pre-trained word embeddings from numpy.array to nn.embedding
         """
         emb = load_embedding(self.vocab, self.args.emb_file, self.args.emb_size)
+        #self.embedding.weight.data.uniform_(-1, 1)
         self.embedding.weight = nn.Parameter(torch.from_numpy(emb).float())
+        #self.embedding.requires_grad=False
         return
         #raise NotImplementedError()
 
@@ -134,6 +149,9 @@ class DanModel(BaseModel):
         x = self.z1(x)
         x = self.fc2(x)
         x = self.z2(x)
+        x = self.fc3(x)
+        x = self.z3(x)
+        #x = self.fc4(x)
         return x
 
 
