@@ -88,6 +88,10 @@ class DanModel(BaseModel):
         Define the model's parameters, e.g., embedding layer, feedforward layer.
         """
         self.embedding = torch.nn.Embedding(num_embeddings=self.n_vocab, embedding_dim=self.n_embed)
+        self.fc1 = nn.Linear(self.n_embed, self.n_embed)
+        self.z1 = nn.ReLU()
+        self.fc2 = nn.Linear(self.n_embed, self.n_embed)
+        self.z2 = nn.ReLU()
         return
         #raise NotImplementedError()
 
@@ -95,7 +99,12 @@ class DanModel(BaseModel):
         """
         Initialize the model's parameters by uniform sampling from a range [-v, v], e.g., v=0.08
         """
-        raise NotImplementedError()
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                torch.nn.init.xavier_uniform(m.weight)
+                m.bias.data.fill_(0.1)
+        return
+        #raise NotImplementedError()
 
     def copy_embedding_from_numpy(self):
         """
@@ -103,7 +112,7 @@ class DanModel(BaseModel):
         """
         emb = load_embedding(self.vocab, self.args.emb_file, self.args.emb_size)
         self.embedding.weight = nn.Parameter(torch.from_numpy(emb).float())
-
+        return
         #raise NotImplementedError()
 
     def forward(self, x):
@@ -117,4 +126,15 @@ class DanModel(BaseModel):
         Return:
             scores: (torch.FloatTensor), [batch_size, ntags]
         """
+        x = self.embedding(x)
+        #(batch_size,length_of_sentence,embedding_dim)
+        x = torch.mean(x,1)
+        #(batch_size,embedding_dim)
+        x = self.fc1(x)
+        x = self.z1(x)
+        x = self.fc2(x)
+        x = self.z2(x)
+        return x
+
+
         raise NotImplementedError()
