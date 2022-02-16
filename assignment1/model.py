@@ -61,10 +61,11 @@ def load_embedding(vocab, emb_file, emb_size):
             unknown_words.append(word)
             print("Embedding does not exist for word = ",word)
 
-    print("length of unknown words",len(unknown_words))
-    if len(unknown_words)>0:
-        print(unknown_words)
-        sys.exit()
+    #print("length of unknown words",len(unknown_words))
+    #if len(unknown_words)>0:
+    #    print(unknown_words)
+    #    sys.exit()
+    
     unk_id = vocab['<unk>']
     emb[unk_id][:] = np.mean(emb,axis=0)
     
@@ -94,14 +95,26 @@ class DanModel(BaseModel):
         """
         self.embedding = torch.nn.Embedding(num_embeddings=self.n_vocab, embedding_dim=self.n_embed)
         self.fc1 = nn.Linear(self.n_embed, 300)
-        self.z1 = nn.LeakyReLU(0.2)
-        self.fc2 = nn.Linear(300, 300)
-        #self.fc2 = nn.Linear(self.n_embed, 50)
-        self.z2 = nn.LeakyReLU(0.2)
-        self.fc3 = nn.Linear(300, 5)
-        self.z3 = nn.LeakyReLU(0.2)
-        #self.fc4 = nn.Linear(300, 5)
+        #self.b1 = nn.BatchNorm1d(300)
         
+        self.z1 = nn.ReLU()
+        self.fc2 = nn.Linear(300, 300)
+        self.z2 = nn.ReLU()
+        
+        #self.b2 = nn.BatchNorm1d(300)
+        #self.fc2 = nn.Linear(self.n_embed, 50)
+        #self.fc3 = nn.Linear(300, 5)
+        #self.z3 = nn.LeakyReLU(0.2)
+        #self.fc3 = nn.Linear(300, 5)
+        #self.d1 = nn.Dropout(p=0.333)
+        #self.d2 = nn.Dropout(p=0.333)
+        #self.embdrop = nn.Dropout(p=0.333)
+
+        self.fc3 = nn.Linear(300, 300)
+        self.z3 = nn.ReLU()
+        #self.d3 = nn.Dropout(p=0.333)
+
+        self.final = nn.Linear(300,5)
         return
         #raise NotImplementedError()
 
@@ -111,11 +124,11 @@ class DanModel(BaseModel):
         """
         for m in self.modules():
             if isinstance(m, nn.Linear):
-                torch.nn.init.xavier_uniform(m.weight)
-                #m.weight.data.uniform_(-0.08,0.08)
+                #torch.nn.init.xavier_uniform(m.weight)
+                m.weight.data.uniform_(-0.08,0.08)
                 #m.bias.data.fill_(0.1)
                 #print("here")
-                m.bias.data.fill_(0.0)
+                #m.bias.data.uniform_(-0.08,0.08)
         return
         #raise NotImplementedError()
 
@@ -123,10 +136,16 @@ class DanModel(BaseModel):
         """
         Load pre-trained word embeddings from numpy.array to nn.embedding
         """
-        emb = load_embedding(self.vocab, self.args.emb_file, self.args.emb_size)
-        #self.embedding.weight.data.uniform_(-1, 1)
-        self.embedding.weight = nn.Parameter(torch.from_numpy(emb).float())
-        #self.embedding.requires_grad=False
+        #emb = load_embedding(self.vocab, self.args.emb_file, self.args.emb_size)
+        
+        #Uniform Random Initialization
+        self.embedding.weight.data.uniform_(-0.08, 0.08)
+        
+    #    self.embedding.weight.data.copy_(emb)
+
+        # = nn.Parameter(torch.from_numpy(emb).float())
+        #self.embedding.weight = nn.Parameter(torch.from_numpy(emb).float())
+        #self.embedding.weight.requires_grad=False
         return
         #raise NotImplementedError()
 
@@ -143,34 +162,52 @@ class DanModel(BaseModel):
         """
 
         
-        
+        #g1 = self.embedding(x) 
+        #print("g1type",type(g1))
         #x (batch_size,length_of_sentence)
-        probs = torch.bernoulli(0.8*torch.ones(x.shape[0],x.shape[1]))
-        tot = probs.sum(1).unsqueeze(-1).expand(-1,x.shape[1])
-        probs = probs==1
-        probs = torch.where(tot!=0,probs,1)
-
+        #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        #probs = torch.bernoulli(0.7*torch.ones(x.shape[0],x.shape[1]))
+        #tot = probs.sum(1).unsqueeze(-1).expand(-1,x.shape[1])
+        #probs = probs==1
+        #probs = torch.where(tot!=0,probs,True).to(device)
         #(batch_size,length_of_sentence)
-        choose = torch.where(probs==1,x,0)
+        #choose = torch.where(probs==1,x,0)
         #batch_size,length_of_sentence)
-
-        emb_out = self.embedding(choose)
+        #print("x shape embedding",x.shape)
         
+        x = self.embedding(x)
 
+        #(batchsize,len_sentence,emb_size)        
+        x = torch.mean(x,1)
+        #(batchsize,embsize)
+
+        #emb_out = self.embedding(choose)
+        #print(" type1",type(emb_out))
         #batch_size,length_of_sentence,embeddingsize)
-
-        emb_out = torch.sum(emb_out,1)
-        denom = probs.sum(1).unsqueeze(-1).expand(-1,emb_out.shape[1])
-        x = torch.div(emb_out,denom)
-
+        #emb_out = torch.sum(emb_out,1)
+        #denom = probs.sum(1).unsqueeze(-1).expand(-1,emb_out.shape[1])
+        #print(" type",type(emb_out))
+        #print("denom",type(denom))
+        #x = torch.div(emb_out,denom)
         #(batch_size,embedding_dim)
+        #x = self.embdrop(x)
+
         x = self.fc1(x)
         x = self.z1(x)
+        #x = self.d1(x)
+        
         x = self.fc2(x)
         x = self.z2(x)
+        #x = self.d2(x)
+
+        #x = self.d2(x)
+        #print("shape of x = ",x.shape)
+        #x = self.z2(x)
         x = self.fc3(x)
         x = self.z3(x)
-        #x = self.fc4(x)
+        #x = self.d3(x)
+
+        x = self.final(x)
         return x
 
 

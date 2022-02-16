@@ -24,7 +24,7 @@ def get_args():
     parser.add_argument("--hid_drop", type=float, default=0.333)
     parser.add_argument("--pooling_method", type=str, default="avg", choices=["sum", "avg", "max"])
     parser.add_argument("--grad_clip", type=float, default=5.0)
-    parser.add_argument("--max_train_epoch", type=int, default=200)
+    parser.add_argument("--max_train_epoch", type=int, default=10)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--lrate", type=float, default=0.005)
     parser.add_argument("--lrate_decay", type=float, default=0)  # 0 means no decay!
@@ -169,6 +169,8 @@ def main():
     loss_func = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adagrad(model.parameters(), lr=args.lrate, lr_decay=args.lrate_decay)
 
+
+    #print(model.summary())
     # Training
     start_time = time.time()
     train_iter = 0
