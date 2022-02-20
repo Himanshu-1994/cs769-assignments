@@ -184,13 +184,13 @@ class DanModel(BaseModel):
         #x = self.embdrop(x)
         x = self.fc1(x)
         x = self.z1(x)
-        x = self.b1(x)
-        x = self.d1(x)
+        #x = self.b1(x)
+        #x = self.d1(x)
         x = self.fc2(x)
         x = self.z2(x)
        
-        x = self.b2(x)
-        x = self.d2(x)
+        #x = self.b2(x)
+        #x = self.d2(x)
 
         x = self.fc3(x)
         x = self.z3(x)
