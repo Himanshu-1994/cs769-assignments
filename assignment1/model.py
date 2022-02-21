@@ -85,7 +85,7 @@ class DanModel(BaseModel):
         self.init_model_parameters()
 
         # Use pre-trained word embeddings if emb_file exists
-        if args.emb_file is not None:
+        if args.emb_file is not None and args.emb_file!="None":
             #print('here')
             self.copy_embedding_from_numpy()
 
@@ -213,9 +213,9 @@ class LSTMModel(BaseModel):
         self.define_model_parameters()
         self.init_model_parameters()
 
-        print("called LSTM")
+        print("Using model LSTM")
         # Use pre-trained word embeddings if emb_file exists
-        if args.emb_file is not None:
+        if args.emb_file is not None and args.emb_file!="None":
             #print('here')
             self.copy_embedding_from_numpy()
 

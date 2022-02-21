@@ -35,7 +35,7 @@ def get_args():
     parser.add_argument("--model", type=str, default="model.pt")  # save/load model name
     parser.add_argument("--dev_output", type=str, default="output.dev.txt")  # output for dev
     parser.add_argument("--test_output", type=str, default="output.test.txt")  # output for dev
-    parser.add_argument("--architecture", type=str, default="LSTM")  # output for dev
+    parser.add_argument("--architecture", type=str, default="DAN")  # output for dev
     args = parser.parse_args()
     print(f"RUN: {vars(args)}")
     return args
@@ -92,7 +92,6 @@ def pad_sentences(sents, pad_id):
         if len(sents[i])<max_seq_length:
             sents[i]+=[pad_id]*(max_seq_length-len(sents[i]))
             #print(sents[i])
-    #raise NotImplementedError()
     return sents
 
 def compute_grad_norm(model, norm_type=2):
@@ -171,7 +170,7 @@ def main():
     if args.architecture=="LSTM":
         model = mn.LSTMModel(args, word_vocab, len(tag_vocab)).to(device)
     else:
-        model = mn.DANModel(args, word_vocab, len(tag_vocab)).to(device)
+        model = mn.DanModel(args, word_vocab, len(tag_vocab)).to(device)
 
 
     loss_func = nn.CrossEntropyLoss()
