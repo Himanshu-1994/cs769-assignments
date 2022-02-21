@@ -23,8 +23,11 @@ except ImportError:
 url = "http://nlp.stanford.edu/data/glove.6B.zip"
 filename = 'glove.6B.zip'
 if not os.path.exists('glove.6B.zip'):
+    print("Downloading Glove Embedding File")
     filename = wget.download(url)
+    print("Done!")
 
+print("Unzipping the contents of glove.6B.zip")
 try:
     from zipfile import ZipFile
 except ImportError:
@@ -32,3 +35,5 @@ except ImportError:
     sys.exit()
 
 ZipFile(filename).extract("glove.6B.300d.txt",".")
+
+print("Done")

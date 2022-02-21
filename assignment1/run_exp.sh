@@ -3,7 +3,7 @@ CAMPUSID='9082418923'
 mkdir -p $CAMPUSID
 
 # Step 1. (Optional) Any preprocessing step, e.g., downloading pre-trained word embeddings
-
+python setup.py
 
 # Step 2. Train models on two datasets.
 ##  2.1. Run experiments on SST
@@ -24,8 +24,7 @@ python main.py \
     --test "data/${PREF}-test.txt" \
     --dev_output "${CAMPUSID}/${PREF}-dev-output.txt" \
     --test_output "${CAMPUSID}/${PREF}-test-output.txt" \
-    --model "${CAMPUSID}/${PREF}-model.pt"
-
+    --model "${CAMPUSID}/${PREF}-model.pt" 
 
 # Step 3. Prepare submission:
 ##  3.1. Copy your code to the $CAMPUSID folder

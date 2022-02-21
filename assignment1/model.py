@@ -49,7 +49,7 @@ def load_embedding(vocab, emb_file, emb_size):
             ln = line.split()
             val = np.array(ln[1:], dtype=np.float64)
             emb_vectors[ln[0]] = val
-    
+    print("size of vocab = ",len(vocab)) 
     for word in vocab.word2id:
         id = vocab[word]
         if word in emb_vectors:
@@ -59,7 +59,7 @@ def load_embedding(vocab, emb_file, emb_size):
                 continue
             
             unknown_words.append(word)
-            print("Embedding does not exist for word = ",word)
+            #print("Embedding does not exist for word = ",word)
 
     #print("length of unknown words",len(unknown_words))
     #if len(unknown_words)>0:
@@ -68,13 +68,12 @@ def load_embedding(vocab, emb_file, emb_size):
     
     unk_id = vocab['<unk>']
     emb[unk_id][:] = np.mean(emb,axis=0)
-    
+    print("No of unknown words = ",len(unknown_words))
     for word in unknown_words:
         id = vocab[word]
         emb[id][:] = emb[unk_id]
 
     return emb
-    #raise NotImplementedError()
 
 
 class DanModel(BaseModel):
@@ -87,36 +86,35 @@ class DanModel(BaseModel):
 
         # Use pre-trained word embeddings if emb_file exists
         if args.emb_file is not None:
+            #print('here')
             self.copy_embedding_from_numpy()
 
     def define_model_parameters(self):
         """
         Define the model's parameters, e.g., embedding layer, feedforward layer.
         """
-        self.embedding = torch.nn.Embedding(num_embeddings=self.n_vocab, embedding_dim=self.n_embed,padding_idx=0)
-        self.fc1 = nn.Linear(self.n_embed, 300)
-        self.b1 = nn.BatchNorm1d(300)
+        self.embedding = torch.nn.Embedding(num_embeddings=self.n_vocab, embedding_dim=self.n_embed,padding_idx=self.vocab['<pad>'])
+        if self.args.emb_drop!=0:
+            self.embdrop = nn.Dropout(p=self.args.emb_drop)
         
-        self.z1 = nn.ReLU()
-        self.fc2 = nn.Linear(300, 300)
-        self.z2 = nn.ReLU()
+        self.fc1 = nn.Linear(self.n_embed, self.args.hid_size)
+        self.z1 = nn.LeakyReLU(0.2)
+        self.d1 = nn.Dropout(p=self.args.hid_drop)
+        #self.b1 = nn.BatchNorm1d(self.n_embed)
+
+        self.fc2 = nn.Linear(self.args.hid_size,self.args.hid_size)
+        self.z2 = nn.LeakyReLU(0.2)
+        self.d2 = nn.Dropout(p=self.args.hid_drop)
+        #self.b2 = nn.BatchNorm1d(300)
         
-        self.b2 = nn.BatchNorm1d(300)
-        #self.fc2 = nn.Linear(self.n_embed, 50)
-        #self.fc3 = nn.Linear(300, 5)
-        #self.z3 = nn.LeakyReLU(0.2)
-        #self.fc3 = nn.Linear(300, 5)
-        self.d1 = nn.Dropout(p=0.333)
-        self.d2 = nn.Dropout(p=0.333)
-        self.embdrop = nn.Dropout(p=0.333)
+        self.fc3 = nn.Linear(self.args.hid_size,self.args.hid_size)
+        self.z3 = nn.LeakyReLU(0.2)
+        #self.b2 = nn.BatchNorm1d(300)
+        self.d3 = nn.Dropout(p=self.args.hid_drop)
+    
 
-        self.fc3 = nn.Linear(300, 300)
-        self.z3 = nn.ReLU()
-        #self.d3 = nn.Dropout(p=0.333)
-
-        self.final = nn.Linear(300,5)
+        self.final = nn.Linear(self.args.hid_size,self.tag_size)
         return
-        #raise NotImplementedError()
 
     def init_model_parameters(self):
         """
@@ -125,8 +123,8 @@ class DanModel(BaseModel):
         
         for name, p in self.named_parameters():
             p.data.uniform_(-0.08,0.08)
-
-            #print(name,p.shape)
+            #torch.nn.init.xavier_uniform(p.data)
+        
         """
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -135,27 +133,150 @@ class DanModel(BaseModel):
                 #m.bias.data.fill_(0.1)
                 #print("here")
                 m.bias.data.uniform_(-0.08,0.08)
-        return
-        #raise NotImplementedError()
         """
+        return
+        
 
     def copy_embedding_from_numpy(self):
         """
         Load pre-trained word embeddings from numpy.array to nn.embedding
         """
-        #emb = load_embedding(self.vocab, self.args.emb_file, self.args.emb_size)
-        
-        #Uniform Random Initialization
-
-        #####self.embedding.weight.data.uniform_(-0.08, 0.08)
-        
-        # self.embedding.weight.data.copy_(emb)
-
-        # = nn.Parameter(torch.from_numpy(emb).float())
-        #self.embedding.weight = nn.Parameter(torch.from_numpy(emb).float())
+        emb = load_embedding(self.vocab, self.args.emb_file, self.args.emb_size)
+        self.embedding.weight = nn.Parameter(torch.from_numpy(emb).float())
         #self.embedding.weight.requires_grad=False
+        
         return
-        #raise NotImplementedError()
+
+    def forward(self, x):
+        """
+        Compute the unnormalized scores for P(Y|X) before the softmax function.
+        E.g., feature: h = f(x)
+              scores: scores = w * h + b
+              P(Y|X) = softmax(scores)  
+        Args:
+            x: (torch.LongTensor), [batch_size, seq_length]
+        Return:
+            scores: (torch.FloatTensor), [batch_size, ntags]
+        """
+        
+        #IMPLEMENTATION OF WORD DROPOUT
+
+        if self.args.word_drop!=0:
+
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            probs = torch.bernoulli((1-self.args.word_drop)*torch.ones(x.shape[0],x.shape[1]))
+            probs = probs==1
+            tot = probs.sum(1).unsqueeze(-1).expand(-1,x.shape[1])
+            probs = torch.where(tot!=0,probs,True).to(device)
+            x = torch.where(probs==1,x,0)
+
+        out = torch.count_nonzero(x,dim=1).to(torch.float)
+        out = out.unsqueeze(-1).expand(-1,self.args.emb_size)+1e-5
+ 
+        x = self.embedding(x)
+        x = torch.sum(x,1)
+        x = torch.div(x,out)
+
+        if self.args.emb_drop!=0:
+            x = self.embdrop(x)
+        
+        x = self.fc1(x)
+        x = self.z1(x)
+        
+        #x = self.b1(x)
+        
+        x = self.d1(x)
+        
+        x = self.fc2(x)
+        x = self.z2(x)
+        
+        #x = self.b2(x)
+        x = self.d2(x)
+
+        #x = self.fc3(x)
+        #x = self.z3(x)
+        #x = self.d3(x)
+
+        x = self.final(x)
+        return x
+
+
+
+
+
+
+class LSTMModel(BaseModel):
+    def __init__(self, args, vocab, tag_size):
+        super(LSTMModel, self).__init__(args, vocab, tag_size)
+        self.n_vocab = len(vocab)
+        self.n_embed = args.emb_size
+        self.define_model_parameters()
+        self.init_model_parameters()
+
+        print("called LSTM")
+        # Use pre-trained word embeddings if emb_file exists
+        if args.emb_file is not None:
+            #print('here')
+            self.copy_embedding_from_numpy()
+
+    def define_model_parameters(self):
+        """
+        Define the model's parameters, e.g., embedding layer, feedforward layer.
+        """
+        self.embedding = torch.nn.Embedding(num_embeddings=self.n_vocab, embedding_dim=self.n_embed,padding_idx=self.vocab['<pad>'])
+        if self.args.emb_drop!=0:
+            self.embdrop = nn.Dropout(p=self.args.emb_drop)
+        
+        self.fc1 = nn.Linear(self.n_embed*2, self.args.hid_size)
+        self.z1 = nn.LeakyReLU(0.2)
+        self.d1 = nn.Dropout(p=self.args.hid_drop)
+        #self.b1 = nn.BatchNorm1d(self.n_embed)
+
+        self.fc2 = nn.Linear(self.args.hid_size,self.args.hid_size)
+        self.z2 = nn.LeakyReLU(0.2)
+        self.d2 = nn.Dropout(p=self.args.hid_drop)
+        #self.b2 = nn.BatchNorm1d(300)
+        
+        self.fc3 = nn.Linear(self.args.hid_size,self.args.hid_size)
+        self.z3 = nn.LeakyReLU(0.2)
+        #self.b2 = nn.BatchNorm1d(300)
+        self.d3 = nn.Dropout(p=self.args.hid_drop)
+    
+        self.lstm = torch.nn.LSTM(300,300,2,batch_first=True,bidirectional=True,dropout=0.2)
+
+        self.final = nn.Linear(self.args.hid_size,self.tag_size)
+        return
+
+    def init_model_parameters(self):
+        """
+        Initialize the model's parameters by uniform sampling from a range [-v, v], e.g., v=0.08
+        """
+        
+        for name, p in self.named_parameters():
+            p.data.uniform_(-0.08,0.08)
+            #torch.nn.init.xavier_uniform(p.data)
+        
+        """
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                #torch.nn.init.xavier_uniform(m.weight)
+                m.weight.data.uniform_(-0.08,0.08)
+                #m.bias.data.fill_(0.1)
+                #print("here")
+                m.bias.data.uniform_(-0.08,0.08)
+        """
+        return
+        
+
+    def copy_embedding_from_numpy(self):
+        """
+        Load pre-trained word embeddings from numpy.array to nn.embedding
+        """
+        emb = load_embedding(self.vocab, self.args.emb_file, self.args.emb_size)
+        self.embedding.weight = nn.Parameter(torch.from_numpy(emb).float())
+        #self.embedding.weight.requires_grad=False
+        
+        return
 
     def forward(self, x):
         """
@@ -169,34 +290,29 @@ class DanModel(BaseModel):
             scores: (torch.FloatTensor), [batch_size, ntags]
         """
 
-        out = torch.count_nonzero(x,dim=1).to(torch.float)
-        #print(out.data)
-        #sys.exit()
-        
         x = self.embedding(x)
+        x,_ = self.lstm(x)
+        
+        x = torch.mean(x,1)
 
-        out = out.unsqueeze(-1).expand(-1,300)
-        x = torch.sum(x,1)
-        #print("shape of x after sum",x.shape)
-        x = torch.div(x,out)
-
-
-        #x = self.embdrop(x)
         x = self.fc1(x)
         x = self.z1(x)
-        x = self.b1(x)
+        
+        #x = self.b1(x)
+        
         x = self.d1(x)
-        x = self.fc2(x)
-        x = self.z2(x)
-       
-        x = self.b2(x)
-        x = self.d2(x)
+        
+        #x = self.fc2(x)
+        #x = self.z2(x)
+        
+        #x = self.b2(x)
+        #x = self.d2(x)
 
-        x = self.fc3(x)
-        x = self.z3(x)
+        #x = self.fc3(x)
+        #x = self.z3(x)
+        #x = self.d3(x)
 
         x = self.final(x)
         return x
 
 
-        raise NotImplementedError()

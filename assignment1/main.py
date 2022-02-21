@@ -4,6 +4,7 @@ import time
 import random
 import torch
 import torch.nn as nn
+#import model_lstm as mn
 import model as mn
 import numpy as np
 import argparse
@@ -12,18 +13,18 @@ from vocab import Vocab
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train", type=str, default="data/cfimdb-train.txt")
-    parser.add_argument("--dev", type=str, default="data/cfimdb-dev.txt")
-    parser.add_argument("--test", type=str, default="data/cfimdb-test.txt")
-    parser.add_argument("--emb_file", type=str, default=None)
+    parser.add_argument("--train", type=str, default="data/sst-train.txt")
+    parser.add_argument("--dev", type=str, default="data/sst-dev.txt")
+    parser.add_argument("--test", type=str, default="data/sst-test.txt")
+    parser.add_argument("--emb_file", type=str, default="glove.6B.300d.txt")
     parser.add_argument("--emb_size", type=int, default=300)
     parser.add_argument("--hid_size", type=int, default=300)
     parser.add_argument("--hid_layer", type=int, default=3)
-    parser.add_argument("--word_drop", type=float, default=0.3)
-    parser.add_argument("--emb_drop", type=float, default=0.333)
+    parser.add_argument("--word_drop", type=float, default=0)
+    parser.add_argument("--emb_drop", type=float, default=0)
     parser.add_argument("--hid_drop", type=float, default=0.333)
     parser.add_argument("--pooling_method", type=str, default="avg", choices=["sum", "avg", "max"])
-    parser.add_argument("--grad_clip", type=float, default=10)
+    parser.add_argument("--grad_clip", type=float, default=5)
     parser.add_argument("--max_train_epoch", type=int, default=10)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--lrate", type=float, default=0.005)
@@ -34,6 +35,7 @@ def get_args():
     parser.add_argument("--model", type=str, default="model.pt")  # save/load model name
     parser.add_argument("--dev_output", type=str, default="output.dev.txt")  # output for dev
     parser.add_argument("--test_output", type=str, default="output.test.txt")  # output for dev
+    parser.add_argument("--architecture", type=str, default="LSTM")  # output for dev
     args = parser.parse_args()
     print(f"RUN: {vars(args)}")
     return args
@@ -165,9 +167,16 @@ def main():
     nwords = len(word_vocab)
     ntags = len(tag_vocab)
     print('nwords', nwords, 'ntags', ntags)
-    model = mn.DanModel(args, word_vocab, len(tag_vocab)).to(device)
+
+    if args.architecture=="LSTM":
+        model = mn.LSTMModel(args, word_vocab, len(tag_vocab)).to(device)
+    else:
+        model = mn.DANModel(args, word_vocab, len(tag_vocab)).to(device)
+
+
     loss_func = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adagrad(model.parameters(), lr=args.lrate, lr_decay=args.lrate_decay)
+    optimizer = torch.optim.Adagrad(model.parameters(), lr=args.lrate, weight_decay=1e-5,lr_decay=args.lrate_decay)
+    #optimizer = torch.optim.AdamW(model.parameters(), lr=0.001,weight_decay=1e-5)
 
 
     #print(model.summary())
@@ -181,6 +190,7 @@ def main():
         for batch in data_iter(train_data, batch_size=args.batch_size, shuffle=True):
             train_iter += 1
 
+            model.train()
             X = pad_sentences(batch[0], word_vocab['<pad>'])
             X = torch.LongTensor(X).to(device)
             Y = torch.LongTensor(batch[1]).to(device)
