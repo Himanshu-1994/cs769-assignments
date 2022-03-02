@@ -42,12 +42,32 @@ class BertSelfAttention(nn.Module):
     # before normalizing the scores, use the attention mask to mask out the padding token scores
     # Note again: in the attention_mask non-padding tokens with 0 and padding tokens with a large negative number 
 
+    # key,query,value shape [bs, num_attention_heads, seq_len, attention_head_size]
+    # attention_mask_size : [bs, 1, 1, seq_len]
+    # output : [bs, seq_len, hidden_state]
+    denom = query.size()[-1]
+    attn_logits = torch.matmul(query, key.transpose(-2, -1))
+    attn_logits = attn_logits / math.sqrt(denom)
+    
+    attn_logits = attn_logits+attention_mask
+    #attn_logits = attn_logits.masked_fill(attention_mask)
+    
+    attention = F.softmax(attn_logits, dim=-1)
+
+    bs, _, seq_len = value.shape[0:2]
+    out = torch.matmul(attention, value)
+    out = out.transpose(1,2)
+    out = out.view(bs,seq_len,-1)
+    
+    return out
+    # print("key = ",key.shape)
+    # print("query = ",query.shape)
     # normalize the scores
 
     # multiply the attention scores to the value and get back V' 
 
     # next, we need to concat multi-heads and recover the original shape [bs, seq_len, num_attention_heads * attention_head_size = hidden_size]
-    raise NotImplementedError
+    #raise NotImplementedError
 
   def forward(self, hidden_states, attention_mask):
     """
@@ -89,7 +109,9 @@ class BertLayer(nn.Module):
     ln_layer: layer norm that takes input+sublayer(output)
     """
     # todo
-    raise NotImplementedError
+    return input+dropout(dense_layer(output))
+
+    #raise NotImplementedError
 
   def forward(self, hidden_states, attention_mask):
     """
@@ -104,14 +126,24 @@ class BertLayer(nn.Module):
     # todo
     # multi-head attention w/ self.self_attention
 
+    ##hidden_states : (batch_size,seqlen,hidden size)
+    x = self.self_attention(hidden_states,attention_mask)
+
     # add-norm layer
+
+    x = self.add_norm(hidden_states,x,self.out_dense,self.attention_dropout,self.attention_layer_norm)
 
     # feed forward
 
+    x_o = self.interm_dense(x)
+    x_o = self.interm_af(x_o)
+
     # another add-norm layer
 
-
-    raise NotImplementedError
+    x_r = self.add_norm(x,x_o,self.out_dense,self.out_dropout,self.out_layer_norm)
+    ##(batch_size, seqlen, hidden size)
+    return x_r
+    #raise NotImplementedError
 
 
 class BertModel(BertPreTrainedModel):
@@ -151,12 +183,14 @@ class BertModel(BertPreTrainedModel):
 
     # get word embedding from self.word_embedding
     # todo
-    inputs_embeds = None
+    #inputs_embeds = None
 
+    inputs_embeds = self.word_embedding(input_ids)
 
     # get position index and position embedding from self.pos_embedding
     pos_ids = self.position_ids[:, :seq_length]
-    pos_embeds = None
+    #pos_embeds = None
+    pos_embeds = self.pos_embedding(pos_ids)
 
     # get token type ids, since we are not consider token type, just a placeholder
     tk_type_ids = torch.zeros(input_shape, dtype=torch.long, device=input_ids.device)
@@ -169,7 +203,8 @@ class BertModel(BertPreTrainedModel):
     embeds = self.embed_layer_norm(embeds)
     embeds = self.embed_dropout(embeds)
 
-    raise NotImplementedError
+    return embeds
+    #raise NotImplementedError
 
   def encode(self, hidden_states, attention_mask):
     """
@@ -197,6 +232,7 @@ class BertModel(BertPreTrainedModel):
     embedding_output = self.embed(input_ids=input_ids)
 
     # feed to a transformer (a stack of BertLayers)
+    #the output from the embedding layer [batch_size, seq_len, hidden_size]
     sequence_output = self.encode(embedding_output, attention_mask=attention_mask)
 
     # get cls token hidden state
@@ -204,4 +240,5 @@ class BertModel(BertPreTrainedModel):
     first_tk = self.pooler_dense(first_tk)
     first_tk = self.pooler_af(first_tk)
 
+    # Sequence output [bs,seq_len,hidden_size], first_tk [bs,hiddensize]
     return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
