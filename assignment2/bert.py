@@ -57,7 +57,7 @@ class BertSelfAttention(nn.Module):
     bs, _, seq_len = value.shape[0:3]
     out = torch.matmul(attention, value)
     out = out.transpose(1,2)
-    out = out.view(bs,seq_len,-1)
+    out = torch.reshape(out,(bs,seq_len,-1))
     
     return out
     # print("key = ",key.shape)
