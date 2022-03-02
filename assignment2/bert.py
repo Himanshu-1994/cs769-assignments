@@ -54,7 +54,7 @@ class BertSelfAttention(nn.Module):
     
     attention = F.softmax(attn_logits, dim=-1)
 
-    bs, _, seq_len = value.shape[0:2]
+    bs, _, seq_len = value.shape[0:3]
     out = torch.matmul(attention, value)
     out = out.transpose(1,2)
     out = out.view(bs,seq_len,-1)
