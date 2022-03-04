@@ -130,7 +130,7 @@ class BertLayer(nn.Module):
     x = self.self_attention(hidden_states,attention_mask)
 
     # add-norm layer
-
+    
     x = self.add_norm(hidden_states,x,self.out_dense,self.attention_dropout,self.attention_layer_norm)
 
     # feed forward
