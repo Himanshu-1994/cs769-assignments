@@ -109,7 +109,7 @@ class BertLayer(nn.Module):
     ln_layer: layer norm that takes input+sublayer(output)
     """
     # todo
-    return input+dropout(dense_layer(output))
+    return ln_layer(input+dropout(dense_layer(output)))
 
     #raise NotImplementedError
 
@@ -131,7 +131,7 @@ class BertLayer(nn.Module):
 
     # add-norm layer
     
-    x = self.add_norm(hidden_states,x,self.out_dense,self.attention_dropout,self.attention_layer_norm)
+    x = self.add_norm(hidden_states,x,self.attention_dense,self.attention_dropout,self.attention_layer_norm)
 
     # feed forward
 
